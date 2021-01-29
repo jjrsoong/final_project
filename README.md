@@ -26,8 +26,8 @@ Given a set of resampled particles, we can apply extra Gaussian noise to each pa
 To test this, we can plot the particles before and after the addition of noise and see if the difference in value is expected given our noise parameters.
 
 ## Timeline
-Working on Feb 2, 3, 9
-Feb 2: Complete half the methods 
-Feb 3: Complete the rest of the methods
-Feb 9: Writeup, video, documentation etc. 
+- Working on Feb 2, 3, 9
+- Feb 2: Complete half the methods 
+- Feb 3: Complete the rest of the methods
+- Feb 9: Writeup, video, documentation etc. 
 
