@@ -19,6 +19,7 @@ from copy import deepcopy
 
 from random import randint, random
 
+from likelihood_field import LikelihoodField
 
 
 def get_yaw_from_pose(p):
@@ -49,10 +50,15 @@ def draw_random_sample(choices, probabilities, n):
         samples.append(deepcopy(choices[int(i)]))
     return samples
 
+def get_coords_from_index(index: int, map: OccupancyGrid):
+    x = (index % map.info.height) * map.info.resolution + map.info.origin.position.x
+    y = (index // map.info.width) * map.info.resolution + map.info.origin.position.y
+    return x, y
 
 class Particle:
-
-    def __init__(self, pose, w):
+    def __str__(self):
+        return 'Particle weight: {self.w}, Pose: {self.pose}'.format(self=self)
+    def __init__(self, pose: Pose, w: float):
 
         # particle pose (Pose object from geometry_msgs)
         self.pose = pose
@@ -60,6 +66,15 @@ class Particle:
         # particle weight
         self.w = w
 
+    # Given real coordinates, return the Occupancy grid index that it should be on
+    def get_index(self, map: OccupancyGrid):
+        width = map.info.width
+        height = map.info.height 
+        x = self.pose.position.x 
+        y = self.pose.position.y 
+        x_index = (x - map.info.origin.position.x) // map.info.resolution
+        y_index = (y - map.info.origin.position.y) // map.info.resolution
+        return x_index + y_index * width
 
 
 class ParticleFilter:
@@ -82,7 +97,7 @@ class ParticleFilter:
 
         # inialize our map and occupancy field
         self.map = OccupancyGrid()
-        self.occupancy_field = None
+        self.likelihood_field = None
 
 
         # the number of particles used in the particle filter
@@ -121,42 +136,89 @@ class ParticleFilter:
 
 
         # intialize the particle cloud
+        while(self.likelihood_field == None): # Make sure that we have a valid map before initializing particle cloud
+            rospy.sleep(0.5)
         self.initialize_particle_cloud()
 
         self.initialized = True
 
 
 
-    def get_map(self, data):
-
+    def get_map(self, data: OccupancyGrid):
         self.map = data
-
-        self.occupancy_field = OccupancyField(data)
-
-    
+        self.likelihood_field = LikelihoodField(data)
 
     def initialize_particle_cloud(self):
         
-        # TODO
+        # Find bounds to limit our initial particle cloud to be a polygon surrounding the house
+        lower_y_bound = 0
+        lower_x_bound = self.map.info.width
+        upper_y_bound = 0
+        upper_x_bound = 0
+        ((x_lower, x_upper), (y_lower, y_upper)) = self.likelihood_field.get_obstacle_bounding_box()
+        print(x_lower, x_upper, y_lower, y_upper)
+        for y in range (self.map.info.height):
+            for x in range (self.map.info.width):
+                grid_cell = self.map.data[y * self.map.info.width + x]
+                if (grid_cell != -1):
+                    if (lower_y_bound == 0): # first valid cell we see as we're moving from y=0 upwards on the map data
+                        lower_y_bound = y
+                    if (x < lower_x_bound):
+                        lower_x_bound = x
+                    if (y > upper_y_bound):
+                        upper_y_bound = y
+                    if (x > upper_x_bound):
+                        upper_x_bound = x
 
+        for i in range(self.num_particles):
+            rand_x = randint(lower_x_bound, upper_x_bound)
+            rand_y = randint(lower_y_bound, upper_y_bound)
+            rand_cell_index = rand_y * self.map.info.width + rand_x
+            while(self.map.data[rand_cell_index] == -1):
+                rand_x = randint(lower_x_bound, upper_x_bound)
+                rand_y = randint(lower_y_bound, upper_y_bound)
+                rand_cell_index = rand_y * self.map.info.width + rand_x
+            pose = Pose()
+            pose.position.x, pose.position.y = get_coords_from_index(rand_cell_index, self.map)
+            q = quaternion_from_euler(0, 0 , np.random.uniform(0, 2 * np.pi))
+            pose.orientation.x = 0
+            pose.orientation.y = 0
+            pose.orientation.z = q[2]
+            pose.orientation.w = q[3]
+            self.particle_cloud.append(Particle(pose, 1))
 
         self.normalize_particles()
 
         self.publish_particle_cloud()
 
 
+
     def normalize_particles(self):
         # make all the particle weights sum to 1.0
-        
-        # TODO
+
+        # Calculate the current sum of all weights
+        total_weight = 0
+        for x in self.particle_cloud:
+            particle_weight = x.w
+            total_weight = total_weight + particle_weight
+
+        # Transfer the particles and their normalized weights to the particle cloud
+        for i, x in enumerate(self.particle_cloud):
+            pose = x.pose
+            particle_weight = x.w
+            particle_weight = particle_weight / total_weight
+            self.particle_cloud[i] = Particle(pose, particle_weight)
+
+        return
 
 
 
     def publish_particle_cloud(self):
+        print("publishing particle cloud", len(self.particle_cloud))
 
         particle_cloud_pose_array = PoseArray()
         particle_cloud_pose_array.header = Header(stamp=rospy.Time.now(), frame_id=self.map_topic)
-        particle_cloud_pose_array.poses
+        particle_cloud_pose_array.poses = []
 
         for part in self.particle_cloud:
             particle_cloud_pose_array.poses.append(part.pose)
@@ -178,6 +240,7 @@ class ParticleFilter:
     def resample_particles(self):
 
         # TODO
+        return
 
 
 
@@ -257,12 +320,14 @@ class ParticleFilter:
         # based on the particles within the particle cloud, update the robot pose estimate
         
         # TODO
+        return
 
 
     
     def update_particle_weights_with_measurement_model(self, data):
 
         # TODO
+        return
 
 
         
@@ -273,6 +338,7 @@ class ParticleFilter:
         # all of the particles correspondingly
 
         # TODO
+        return
 
 
 
