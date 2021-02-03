@@ -114,7 +114,7 @@ class ParticleFilter:
 
 
         # the number of particles used in the particle filter
-        self.num_particles = 35
+        self.num_particles = 5000
 
         # initialize the particle cloud array
         self.particle_cloud = []
@@ -162,6 +162,7 @@ class ParticleFilter:
         self.likelihood_field = LikelihoodField(data)
 
     def initialize_particle_cloud(self):
+        print("initializing particle cloud")
         
         ((x_lower, x_upper), (y_lower, y_upper)) = self.likelihood_field.get_obstacle_bounding_box()
 
@@ -244,7 +245,7 @@ class ParticleFilter:
 
         # wait for a little bit for the transform to become avaliable (in case the scan arrives
         # a little bit before the odom to base_footprint transform was updated) 
-        self.tf_listener.waitForTransform(self.base_frame, self.odom_frame, data.header.stamp, rospy.Duration(0.5))
+        self.tf_listener.waitForTransform(self.base_frame, self.odom_frame, data.header.stamp, rospy.Duration(2))
         if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
             return
 
@@ -306,37 +307,39 @@ class ParticleFilter:
     def update_estimated_robot_pose(self):
         print("updating estimated robot pose", len(self.particle_cloud))
         # based on the particles within the particle cloud, update the robot pose estimate
-        x = [p.pose.position.x for p in self.particle_cloud]
-        y = [p.pose.position.y for p in self.particle_cloud]
-        xmin, xmax = (min(x), max(x))
-        ymin, ymax = (min(y), max(y))
+        # x = [p.pose.position.x for p in self.particle_cloud]
+        # y = [p.pose.position.y for p in self.particle_cloud]
+        # yaw = [get_yaw_from_pose(p.pose) for p in self.particle_cloud]
+        # xmin, xmax = (min(x), max(x))
+        # ymin, ymax = (min(y), max(y))
+        # yaw_min, yaw_max = (min(yaw), max(yaw))
 
-        # Peform the kernel density estimate
-        # Source: https://stackoverflow.com/questions/30145957/plotting-2d-kernel-density-estimation-with-python
-        # xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-        # positions = np.vstack([xx.ravel(), yy.ravel()])
-        # values = np.vstack([x, y])
+        # xx, yy, yawyaw= np.mgrid[xmin:xmax:100j, ymin:ymax:100j, yaw_min:yaw_max:100j]
+        # values = np.vstack([x, y, yaw])
         # kernel = st.gaussian_kde(values)
-        # f = np.reshape(kernel(positions).T, xx.shape)
 
-        # print('kdef',f)
-        return
+        # densest_point = values.T[np.argmax(kernel)]
+        
+        # estimated_pose = Pose()
+        # estimated_pose.position.x = densest_point[0]
+        # estimated_pose.position.y = densest_point[1]
+        # q = quaternion_from_euler(0, 0, densest_point[2])
+        # estimated_pose.orientation.z = q[2]
+        # estimated_pose.orientation.w = q[3]
 
+        estimated_pose = max(self.particle_cloud, key=lambda p: p.w).pose
+        self.robot_estimate = estimated_pose
 
     
     def update_particle_weights_with_measurement_model(self, data):
         print('update particle weights')
-        cardinal_directions_idxs = [0, 90, 180, 270]
+        cardinal_directions_idxs = [0, 45, 90, 135, 180, 225, 270, 315]
 
         if (self.likelihood_field == None):
             print("returning")
             return
 
         for i, p in enumerate(self.particle_cloud):
-            if (math.isnan(p.w)):
-                print("isNan p.w")
-                exit()
-
             q = 1
             for cd in cardinal_directions_idxs:
                 # grab the observation at time t and laser range finder index k
@@ -346,7 +349,7 @@ class ParticleFilter:
                 # it would also be fine to skip this sensor measurement according to the 
                 # likelihood field algorithm formulation
                 if (z_t_k > 3.5):
-                    z_t_k = 3.5
+                    z_t_k = 5
 
                 # get the orientation of the robot from the quaternion (index 2 of the Euler angle)
                 theta = euler_from_quaternion([
@@ -364,13 +367,13 @@ class ParticleFilter:
                 closest_obstacle_dist = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
 
                 # compute the probability based on a zero-centered gaussian with sd = 0.1
-                prob = compute_prob_zero_centered_gaussian(closest_obstacle_dist, 0.1)
+                prob = compute_prob_zero_centered_gaussian(closest_obstacle_dist, 1)
+                if (math.isnan(prob)): 
+                    # dealing with NaN probabilities
+                    prob = 0.1 #TODO: Tune this
 
                 # multiply all sensor readings together
                 q = q * prob #TODO: maybe look into z_hit, z_random, z_max
-                print(q)
-            if (math.isnan(q)):
-                print("q isnan")
             self.particle_cloud[i].w = q
         return
 
@@ -378,7 +381,6 @@ class ParticleFilter:
         
 
     def update_particles_with_motion_model(self):
-        return
         # based on the how the robot has moved (calculated from its odometry), we'll  move
         # all of the particles correspondingly
 
