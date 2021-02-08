@@ -2,7 +2,7 @@
 ## Name
 Yves Shum, Joshua Soong
 
-[ParticleFilterGif](./ParticleFilterRViz.gif)
+![ParticleFilterGif](./ParticleFilterRViz.gif)
 
 ## `Objectives`
 
