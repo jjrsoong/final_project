@@ -367,7 +367,7 @@ class ParticleFilter:
                 closest_obstacle_dist = self.likelihood_field.get_closest_obstacle_distance(x_z_t_k, y_z_t_k)
 
                 # compute the probability based on a zero-centered gaussian with sd = 0.1
-                prob = compute_prob_zero_centered_gaussian(closest_obstacle_dist, 1)
+                prob = compute_prob_zero_centered_gaussian(closest_obstacle_dist, 0.7)
                 if (math.isnan(prob)): 
                     # dealing with NaN probabilities
                     prob = 0.1 #TODO: Tune this
@@ -392,7 +392,7 @@ class ParticleFilter:
         curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
         old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
 
-        delta_x = curr_x - old_x
+        delta_x = curr_x - old_x 
         delta_y = curr_y - old_y
         delta_yaw = curr_yaw - old_yaw
 
@@ -409,10 +409,14 @@ class ParticleFilter:
             # angle difference between bot's initial ("old") yaw and the particle's yaw, in radians. Used in calculated updated_x and updated_y (see below comment and code)
             rotation_diff = (yaw - old_yaw) * (math.pi / 180.0)
 
-            updated_yaw = yaw + delta_yaw
+            rand_yaw = np.random.normal(loc=0, scale=0.15)
+            updated_yaw = yaw + delta_yaw + (max(rand_yaw, -2) if rand_yaw < 0 else min(rand_yaw, 2))
+
             # To find the particle's new x and y coordinates, we use cosine and sine to determine how the robot's movements are rotated to the particle's bearings. Specifically, we must determine how much of the bot's change in x must be apportioned to the particle's x-axis movement and how much should be apportioned to the particle's y-axis movement (same with bot's y-axis movement)
-            updated_x = x + math.sin(rotation_diff) * delta_y + math.cos(rotation_diff) * delta_x
-            updated_y = y + math.sin(rotation_diff) * delta_x + math.cos(rotation_diff) * delta_y
+            rand_x = np.random.normal(loc=0, scale=0.1)
+            rand_y = np.random.normal(loc=0, scale=0.1)
+            updated_x = x + math.sin(rotation_diff) * delta_y + math.cos(rotation_diff) * delta_x + (max(rand_x, -1) if rand_x < 0 else min(rand_x, 1))
+            updated_y = y + math.sin(rotation_diff) * delta_x + math.cos(rotation_diff) * delta_y + (max(rand_y, -1) if rand_y < 0 else min(rand_y, 1))
 
             #Combine updated coordinates and bearings in a new Pose
             new_pose = Pose()
