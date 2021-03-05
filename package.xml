@@ -1,8 +1,8 @@
 <package format="2">
-  <name>final_filter_project</name>
+  <name>final_project</name>
   <version>0.0.0</version>
   <description>
-  The final_filter_project package
+  The final_project package
   </description>
   <maintainer email="sarahsebo@uchicago.edu">Sarah Sebo</maintainer>
   <license>MIT</license>
