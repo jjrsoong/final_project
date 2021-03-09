@@ -1,19 +1,100 @@
 <launch>
-  <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
-  <arg name="x_pos" default="-3.0"/>
-  <arg name="y_pos" default="1.0"/>
-  <arg name="z_pos" default="0.0"/>
+  <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]" />
+  <arg name="pacturtle" default="pacturtle" />
+  <arg name="redghost" default="redghost" />
+  <arg name="blueghost" default="blueghost" />
+  <arg name="greenghost" default="greenghost" />
+  <arg name="yellowghost" default="yellowghost" />
 
+
+
+  <arg name="pacturtle_x_pos" default=" 4.0" />
+  <arg name="pacturtle_y_pos" default="-7.0" />
+  <arg name="pacturtle_z_pos" default=" 0.0" />
+  <arg name="pacturtle_yaw" default=" 0.0" />
+
+  <arg name="redghost_x_pos" default=" 4.0" />
+  <arg name="redghost_y_pos" default="-2.0" />
+  <arg name="redghost_z_pos" default=" 0.0" />
+  <arg name="redghost_yaw" default=" 0.0" />
+
+  <arg name="blueghost_x_pos" default=" 5.0" />
+  <arg name="blueghost_y_pos" default="-2.0" />
+  <arg name="blueghost_z_pos" default=" 0.0" />
+  <arg name="blueghost_yaw" default=" 0.0" />
+
+  <arg name="greenghost_x_pos" default=" 4.0" />
+  <arg name="greenghost_y_pos" default="-3.0" />
+  <arg name="greenghost_z_pos" default=" 0.0" />
+  <arg name="greenghost_yaw" default=" 0.0" />
+
+  <arg name="yellowghost_x_pos" default=" 5.0"/>
+  <arg name="yellowghost_y_pos" default="-3.0"/>
+  <arg name="yellowghost_z_pos" default=" 0.0"/>
+  <arg name="yellowghost_yaw"   default=" 0.0"/>
+  
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/final_project.world"/>
-    <arg name="paused" value="false"/>
-    <arg name="use_sim_time" value="true"/>
-    <arg name="gui" value="true"/>
-    <arg name="headless" value="false"/>
-    <arg name="debug" value="false"/>
+    <arg name="world_name" value="$(find final_project)/map/final_project.world" />
+    <arg name="paused" value="false" />
+    <arg name="use_sim_time" value="true" />
+    <arg name="gui" value="true" />
+    <arg name="headless" value="false" />
+    <arg name="debug" value="false" />
   </include>
 
-  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro" />
+  <group ns="$(arg pacturtle)">
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find final_project)/urdf/turtlebot3_$(arg model)_final_project.urdf.xacro' type:=$(arg pacturtle)" />
 
-  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model turtlebot3 -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -param robot_description" />
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+      <param name="publish_frequency" type="double" value="50.0" />
+      <param name="tf_prefix" value="$(arg pacturtle)" />
+    </node>
+
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model $(arg pacturtle) -x $(arg pacturtle_x_pos) -y $(arg pacturtle_y_pos) -z $(arg pacturtle_z_pos) -Y $(arg pacturtle_yaw) -param robot_description" />
+  </group>
+
+  <group ns="$(arg redghost)">
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find final_project)/urdf/turtlebot3_$(arg model)_final_project.urdf.xacro' type:=$(arg redghost)" />
+
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+      <param name="publish_frequency" type="double" value="50.0" />
+      <param name="tf_prefix" value="$(arg redghost)" />
+    </node>
+
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model $(arg redghost) -x $(arg redghost_x_pos) -y $(arg redghost_y_pos) -z $(arg redghost_z_pos) -Y $(arg redghost_yaw) -param robot_description" />
+  </group>
+
+  <group ns="$(arg blueghost)">
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find final_project)/urdf/turtlebot3_$(arg model)_final_project.urdf.xacro' type:=$(arg blueghost)" />
+
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+      <param name="publish_frequency" type="double" value="50.0" />
+      <param name="tf_prefix" value="$(arg blueghost)" />
+    </node>
+
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model $(arg blueghost) -x $(arg blueghost_x_pos) -y $(arg blueghost_y_pos) -z $(arg blueghost_z_pos) -Y $(arg blueghost_yaw) -param robot_description" />
+  </group>
+
+  <group ns = "$(arg greenghost)">
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find final_project)/urdf/turtlebot3_$(arg model)_final_project.urdf.xacro' type:=$(arg greenghost)" />
+
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+      <param name="publish_frequency" type="double" value="50.0" />
+      <param name="tf_prefix" value="$(arg greenghost)" />
+    </node>
+
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model $(arg greenghost) -x $(arg greenghost_x_pos) -y $(arg greenghost_y_pos) -z $(arg greenghost_z_pos) -Y $(arg greenghost_yaw) -param robot_description" />
+  </group>
+
+  <group ns = "$(arg yellowghost)">
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find final_project)/urdf/turtlebot3_$(arg model)_final_project.urdf.xacro' type:=$(arg yellowghost)" />
+
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+      <param name="publish_frequency" type="double" value="50.0" />
+      <param name="tf_prefix" value="$(arg yellowghost)" />
+    </node>
+
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model $(arg yellowghost) -x $(arg yellowghost_x_pos) -y $(arg yellowghost_y_pos) -z $(arg yellowghost_z_pos) -Y $(arg yellowghost_yaw) -param robot_description" />
+  </group>
+  
 </launch>
