@@ -1,5 +1,6 @@
 <launch>
   <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]" />
+  <!-- Setting up instances of the turtlebot3 model -->
   <arg name="pacturtle" default="pacturtle" />
   <arg name="redghost" default="redghost" />
   <arg name="blueghost" default="blueghost" />
@@ -7,7 +8,7 @@
   <arg name="yellowghost" default="yellowghost" />
 
 
-
+  <!-- Initializing position of all turtles -->
   <arg name="pacturtle_x_pos" default=" 4.0" />
   <arg name="pacturtle_y_pos" default="-7.0" />
   <arg name="pacturtle_z_pos" default=" 0.0" />
@@ -33,6 +34,7 @@
   <arg name="yellowghost_z_pos" default=" 0.0"/>
   <arg name="yellowghost_yaw"   default=" 0.0"/>
   
+  <!-- Launching the world file that includes our map -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find final_project)/map/final_project.world" />
     <arg name="paused" value="false" />
@@ -42,6 +44,7 @@
     <arg name="debug" value="false" />
   </include>
 
+  <!-- Specification on what each turtlebot model is -->
   <group ns="$(arg pacturtle)">
     <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find final_project)/urdf/turtlebot3_$(arg model)_final_project.urdf.xacro' type:=$(arg pacturtle)" />
 
