@@ -9,28 +9,28 @@
 
 
   <!-- Initializing position of all turtles -->
-  <arg name="pacturtle_x_pos" default=" 4.0" />
-  <arg name="pacturtle_y_pos" default="-7.0" />
+  <arg name="pacturtle_x_pos" default=" 2.0" />
+  <arg name="pacturtle_y_pos" default=" 5.0" />
   <arg name="pacturtle_z_pos" default=" 0.0" />
   <arg name="pacturtle_yaw" default=" 0.0" />
 
-  <arg name="redghost_x_pos" default=" 4.0" />
-  <arg name="redghost_y_pos" default="-2.0" />
+  <arg name="redghost_x_pos" default=" 3.5" />
+  <arg name="redghost_y_pos" default=" 8.5" />
   <arg name="redghost_z_pos" default=" 0.0" />
   <arg name="redghost_yaw" default=" 0.0" />
 
-  <arg name="blueghost_x_pos" default=" 5.0" />
-  <arg name="blueghost_y_pos" default="-2.0" />
+  <arg name="blueghost_x_pos" default=" 4.5" />
+  <arg name="blueghost_y_pos" default=" 8.5" />
   <arg name="blueghost_z_pos" default=" 0.0" />
   <arg name="blueghost_yaw" default=" 0.0" />
 
-  <arg name="greenghost_x_pos" default=" 4.0" />
-  <arg name="greenghost_y_pos" default="-3.0" />
+  <arg name="greenghost_x_pos" default=" 3.5" />
+  <arg name="greenghost_y_pos" default=" 9.5" />
   <arg name="greenghost_z_pos" default=" 0.0" />
   <arg name="greenghost_yaw" default=" 0.0" />
 
-  <arg name="yellowghost_x_pos" default=" 5.0"/>
-  <arg name="yellowghost_y_pos" default="-3.0"/>
+  <arg name="yellowghost_x_pos" default=" 4.5"/>
+  <arg name="yellowghost_y_pos" default=" 9.5"/>
   <arg name="yellowghost_z_pos" default=" 0.0"/>
   <arg name="yellowghost_yaw"   default=" 0.0"/>
   
@@ -99,5 +99,8 @@
 
     <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model $(arg yellowghost) -x $(arg yellowghost_x_pos) -y $(arg yellowghost_y_pos) -z $(arg yellowghost_z_pos) -Y $(arg yellowghost_yaw) -param robot_description" />
   </group>
+
+  <!-- Run world controller -->
+  <node name="world_controller" pkg="final_project" type="world_controller.py" respawn="true" />
   
 </launch>
