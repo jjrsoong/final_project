@@ -44,6 +44,9 @@
     <arg name="debug" value="false" />
   </include>
 
+  
+
+
   <!-- Specification on what each turtlebot model is -->
   <group ns="$(arg pacturtle)">
     <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find final_project)/urdf/turtlebot3_$(arg model)_final_project.urdf.xacro' type:=$(arg pacturtle)" />
@@ -101,6 +104,11 @@
   </group>
 
   <!-- Run world controller -->
-  <node name="world_controller" pkg="final_project" type="world_controller.py" respawn="true" />
+  <node name="world_controller" pkg="final_project" type="world_controller.py" respawn="true" output="screen" />
+
+  <!-- Launching pacturtle teleop -->
+  <!-- Note: Change launch-prefix if not on linux machine -->
+  <node pkg="final_project" type="pacturtle_teleop_key.py" name="turtlebot3_teleop_keyboard"  output="screen" launch-prefix="gnome-terminal -- ">
+  </node>
   
 </launch>
