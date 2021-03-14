@@ -75,6 +75,7 @@ class WorldController(object):
         return True 
 
     def sequentially_spawn_ghosts(self): 
+        # This doesn't really work yet XD 
         for (turtle, position) in self.spawn_point.items():
             p = Pose(position=position)
             t = Twist(linear=Vector3(0, 0, 0), angular=Vector3(0, 0, 0))
@@ -86,6 +87,7 @@ class WorldController(object):
         
 
     def reset_world(self):
+        # Resets the world, placing each turtle in their init point
         if self.reset_world_in_progress and not self.ghosts_is_in_init_pos():
             return
         else:
@@ -107,6 +109,7 @@ class WorldController(object):
 
 
     def pacturtle_ghost_contact(self, location_mapping):
+        # Checks if the pacturtle is close enough to the ghostturtle
         x_delta_range = 0.5
         y_delta_range = 0.5 
         pacturtle_x = location_mapping[PACTURTLE].position.x
@@ -125,6 +128,7 @@ class WorldController(object):
 
 
     def model_states_received(self, data: ModelState):
+        # Callback for we receive model_states 
         self.model_states = data
         location_mapping = {}
         for turtle in self.init_pos.keys():
