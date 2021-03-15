@@ -56,7 +56,8 @@ class WorldController(object):
         self.model_states_pub = rospy.Publisher(
             "/gazebo/set_model_state", ModelState, queue_size=10)
 
-
+        # Green turtle gps pub 
+        self.green_turtle_gps_pub = rospy.Publisher(f"{GREEN}/gps", Pose, queue_size=10)
         rospy.sleep(1)
 
         self.reset_world()
@@ -127,13 +128,19 @@ class WorldController(object):
         return False
 
 
-    def model_states_received(self, data: ModelState):
+    def model_states_received(self, data: ModelStates):
         # Callback for we receive model_states 
         self.model_states = data
         location_mapping = {}
         for turtle in self.init_pos.keys():
             index = data.name.index(turtle)
-            location_mapping[turtle] = data.pose[index]
+            try: 
+                location_mapping[turtle] = data.pose[index]
+            except ValueError:
+                return
+
+        green_index = data.name.index(GREEN)
+        self.green_turtle_gps_pub.publish(data.pose[green_index])
         if (self.pacturtle_ghost_contact(location_mapping)):
             self.reset_world()
         return
