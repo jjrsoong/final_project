@@ -38,6 +38,8 @@ class RedTurtle(object):
 
         self.PAC_CELL = 0
         self.RED_CELL = 0
+        # Ghost is initialized facing right (up = 0 degree)
+        self.PAST_DIRECTION = 90
 
         # Subscribe to model states
         rospy.Subscriber("/gazebo/model_states", ModelStates,
@@ -122,21 +124,71 @@ class RedTurtle(object):
                 break
         # Determine direction of target cell relative to current cell
         direction = ''
+        # Below 2 are conditions for moving along the x axis
         if target_cell == self.RED_CELL - 1:
-            direction = 'left'
+            direction = 270
         elif target_cell == self.RED_CELL + 1:
-            direction = 'right'
+            direction = 90
+        # Below 2 are conditions of moving along the y axis
         elif target_cell == self.RED_CELL + MAP_WIDTH:
-            direction = 'up'
+            direction = 0
         else:
-            direction = 'down'
+            direction = 180
 
-        forward = Twist()
-        forward.linear.x = 0.5
-        while True:
-            self.command_pub.publish(forward)
-        print(forward)
+        angle = direction - self.PAST_DIRECTION
+        self.turn_around(angle)
 
+        # self.turn_around(90)
+        forward = True
+        # Range, in meters, required before bot recalculates shortest path
+        error = 0.1
+        command = Twist()
+        command.linear.x = 0.5
+        # If moving along the x axis (left or right), look at x coordinate to determine
+        # midpoint. Else, use y coordinate to detemrine proximity to cell midpoint
+        if direction == 90 or direction == 270:
+            midpoint = self.find_midpoint(target_cell, "x")
+            # print('mid x ' + str(midpoint) + ' x pos ' + str(self.RED_POS.x))
+            # print(redturtle_data)
+            if midpoint - error < self.RED_POS.x and midpoint + error > self.RED_POS.x:
+                forward = False
+                print('stop forward x')
+        # Robot is moving along the y axis
+        else:
+            midpoint = self.find_midpoint(target_cell, "y")
+            print('mid y ' + str(midpoint) + ' y pos ' + str(self.RED_POS.y))
+            if midpoint - error < self.RED_POS.y and midpoint + error > self.RED_POS.y:
+                forward = False
+                print('stop forward y')
+        if not forward:
+            command.linear.x = 0
+        self.command_pub.publish(command)
+
+    # Determines the coordinate value of the midpoint of a cell for the specificed axis
+    # Add 0.5 to get the midpoint of the cell
+    def find_midpoint(self, cell, axis):
+        if axis=="x":
+            return cell%MAP_WIDTH + 0.5
+        else:
+            return math.floor(cell/MAP_WIDTH) + 0.5
+
+    #Helper function for rotating bot. Recycled from q_learning_project
+    def turn_around(self, angle):
+        print('turning')
+        relative_angle = (angle * math.pi) / 180
+        angular_speed = 0.5
+        current_angle = 0
+        firstTime = rospy.Time.now().to_sec()
+        while current_angle < relative_angle:
+            twister = Twist()
+            twister.angular.z = angular_speed
+            self.command_pub.publish(twister)
+
+            curTime = rospy.Time.now().to_sec() - firstTime
+            current_angle = angular_speed*(curTime)
+        twister.angular.z = 0
+        print('end')
+        self.command_pub.publish(twister)
 
     # Helper function that translates a point into a cell location
     # on the map (map designed so that each cell is 1m x 1m)
@@ -169,6 +221,7 @@ class RedTurtle(object):
             print(self.PAC_CELL)
             self.shortest_path(self.RED_CELL, self.PAC_CELL)
             print(self.shortestPath)
+
             self.move()
         return
 
