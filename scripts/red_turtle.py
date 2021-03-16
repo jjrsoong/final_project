@@ -131,42 +131,44 @@ class RedTurtle(object):
         self.shortestPath = path
 
     def move(self):
+        # Find the next cell to traverse to
+        # Required step since, depending on exact coordinates, shortestPath
+        # may or many not include cell the bot is currently in (if it does, need to
+        # ignore current cell and take the next one)
         target_cell = 0
         for next_cell in self.shortestPath:
             if self.RED_CELL != next_cell:
                 target_cell = next_cell
                 break
         # Determine direction of target cell relative to current cell
-        direction = 0
         # Below 2 are conditions for moving along the x axis
+        # If target cell is to the left
         if target_cell == self.RED_CELL - 1:
-            direction = 180
             target_yaw = 3.1415
+        # If target cell is to the right
         elif target_cell == self.RED_CELL + 1:
-            direction = 0
             target_yaw = 0
         # Below 2 are conditions of moving along the y axis
+        # If target cell is to the top
         elif target_cell == self.RED_CELL + MAP_WIDTH:
-            direction = 90
             target_yaw = 1.5708
+        # If target cell is to the bottom
         else:
-            direction = 270
             target_yaw = -1.5708
 
-        yaw_error = 0.07
+        yaw_error = 0.2
         current_yaw = self.get_yaw_from_pose(self.POSE)
-        # Edge case when the robot should point leftward whereby yaw transitions from
-        # 3.14 to -3.14. Use this if statement to catch the -3.14 edge case
+        # Check for edge cases when yaw goes from positive to negative (ie. around 0,
+        # transition from 3.14 to -3.14). If so, use additional rules to check for error margin
+        # or negative numbers
         turning = False
-        if target_yaw == 3.1415:
+        if target_yaw == 3.1415 or target_yaw == 0:
             if current_yaw > 0:
                 if current_yaw > target_yaw + yaw_error or current_yaw < target_yaw - yaw_error:
                     turning = True
             else:
                 if current_yaw > -1*(target_yaw) + yaw_error or current_yaw < -1*(target_yaw) - yaw_error:
                     turning = True
-            # else:
-            #     turning = False
         else:
             if current_yaw > target_yaw + yaw_error or current_yaw < target_yaw - yaw_error:
                 turning = True
@@ -177,58 +179,57 @@ class RedTurtle(object):
             self.forward = False
             command = Twist()
 
-            # Check for cases where moving clockwise is better than default
+            # Check for cases where moving clockwise is better than the default
             # counter clockwise
-            # Bot wants to move from facing upward to facing right
             if target_yaw == 0 and current_yaw > 0:
                 command.angular.z = -0.7
             elif target_yaw == 3.1415 and current_yaw < 0:
                 command.angular.z = -0.7
             elif target_yaw == -1.5708 and current_yaw < 1.5708 and current_yaw > -1.5708:
                 command.angular.z = -0.7
+            # Default if counter clockwise
             else:
                 command.angular.z = 0.5
-            print(str(current_yaw) + '      ' + str(target_yaw))
+            # print(str(current_yaw) + '      ' + str(target_yaw))
             self.command_pub.publish(command)
+        # Turning has completed, can begin moving forward
         else:
             self.forward = True
-            # Range, in meters, required before bot recalculates shortest path
+            # Margin of error allowed before bot recalculates shortest path
             error = 0.1
-            axis = ''
+            # TODO delete
+            # axis = ''
             command = Twist()
             x_midpoint = self.find_midpoint(target_cell, "x")
             y_midpoint = self.find_midpoint(target_cell, "y")
 
-            # If moving along the x axis (left or right), look at x coordinate to determine
-            # midpoint. Else, use y coordinate to detemrine proximity to cell midpoint
-            if direction == 0 or direction == 180:
+            # Robot is moving along the x axis, check if it has reached midpoint of next cell
+            if target_yaw == 0 or target_yaw == 3.1415:
                 axis = 'x'
+                # TODO delete
                 # print('mid x ' + str(midpoint) + ' x pos ' + str(self.RED_POS.x))
-                # print(redturtle_data)
                 if x_midpoint - error < self.RED_POS.x and x_midpoint + error > self.RED_POS.x:
                     self.forward = False
                     print('stop forward x ' + str(self.RED_POS.x))
-            # Robot is moving along the y axis
+            # Robot is moving along the y axis, check if it has reached midpoint of next cell
             else:
-                axis = 'y'
-                # print('mid y ' + str(midpoint) + ' y pos ' + str(self.RED_POS.y))
+                # axis = 'y' TODO delete
                 if y_midpoint - error < self.RED_POS.y and y_midpoint + error > self.RED_POS.y:
                     self.forward = False
                     print('stop forward y ' + str(self.RED_POS.y))
 
+            # TODO - delete, out of date with new way of turning (orientation)
             # Turning is not 100% accurate, use modelstate POS to make small adjustments
             # during linear movement
-            adjustment = 3
+            # adjustment = 3
             gap = 0
-            if axis == 'x':
-                # Gap, in meters, between desired position and current position
-                gap = self.RED_POS.y - y_midpoint
-                command.angular.z = gap * adjustment
-            else:
-                gap = x_midpoint - self.RED_POS.x
-                command.angular.z = gap * adjustment
-
-
+            # if axis == 'x':
+            #     # Gap, in meters, between desired position and current position
+            #     gap = self.RED_POS.y - y_midpoint
+            #     command.angular.z = gap * adjustment
+            # else:
+            #     gap = x_midpoint - self.RED_POS.x
+            #     command.angular.z = gap * adjustment
 
             if not self.forward:
                 print('stop moving forward')
@@ -239,25 +240,6 @@ class RedTurtle(object):
                 command.linear.x = 0.3 * (1-gap)
                 self.command_pub.publish(command)
 
-    # To account for noise, use this command to see if current yaw is within error margin
-    # of target yaw
-    def approx_yaw(self, target_yaw, current_yaw, yaw_error):
-        turning = False
-        if target_yaw == 3.1415:
-            if current_yaw > 0:
-                if current_yaw < target_yaw + yaw_error and current_yaw > target_yaw - yaw_error:
-                    return True
-            else:
-                if current_yaw < -1*(target_yaw) + yaw_error and current_yaw > -1*(target_yaw) - yaw_error:
-                    return True
-                else:
-                    return False
-        else:
-            if current_yaw < target_yaw + yaw_error and current_yaw > target_yaw - yaw_error:
-                return True
-            else:
-                return False
-
     # Determines the coordinate value of the midpoint of a cell for the specificed axis
     # Add 0.5 to get the midpoint of the cell
     def find_midpoint(self, cell, axis):
@@ -265,33 +247,6 @@ class RedTurtle(object):
             return cell%MAP_WIDTH + 0.5
         else:
             return math.floor(cell/MAP_WIDTH) + 0.5
-
-    #Helper function for rotating bot. Recycled from q_learning_project
-    def turn_around(self, angle):
-        print('turning')
-        relative_angle = (angle * math.pi) / 180
-        angular_speed = 0.5
-        # Error margin to account for noise, time it takes to
-        # get to angular speed, etc.
-        error = 0
-        if angle == 180:
-            error = 0.42
-        elif angle == 90:
-            error = 0.16
-        elif angle == 360:
-            error = 0.55
-        current_angle = 0
-        twister = Twist()
-        firstTime = rospy.Time.now().to_sec()
-        while current_angle < relative_angle:
-            twister.angular.z = angular_speed
-            self.command_pub.publish(twister)
-            curTime = rospy.Time.now().to_sec() - firstTime - error
-            current_angle = angular_speed*(curTime)
-        twister.angular.z = 0
-        print('end turning')
-        self.command_pub.publish(twister)
-        rospy.sleep(1)
 
     # Helper function that translates a point into a cell location
     # on the map (map designed so that each cell is 1m x 1m)
@@ -301,6 +256,7 @@ class RedTurtle(object):
         cell = MAP_WIDTH * row + column
         return cell
 
+    # Callback function that extracts ModelState data and calls mvoe() command
     def turtle_hunter(self, data: ModelState):
         # Extract Location of Red Turtle and Pacturtle
         pacturtle_data = Pose()
@@ -322,65 +278,14 @@ class RedTurtle(object):
             self.RED_CELL = redturtle_cell
             self.PAC_CELL = pacturtle_cell
             self.shortest_path(self.RED_CELL, self.PAC_CELL)
-            print(self.shortestPath)
             self.move()
-        # Still moving forward, do not bother it until reached midpoint of target cell
+        # Still moving forward, do not bother it until reaches midpoint of target cell
         else:
-            # self.RED_CELL = redturtle_cell
-            # self.PAC_CELL = pacturtle_cell
             self.move()
-        # One of the bots has changed positions, recalculate shortest path
-        # if not redturtle_cell == self.RED_CELL or not pacturtle_cell == self.PAC_CELL:
-        #     self.RED_CELL = redturtle_cell
-        #     self.PAC_CELL = pacturtle_cell
-        #     print(self.RED_CELL)
-        #     print(self.PAC_CELL)
-        #     self.shortest_path(self.RED_CELL, self.PAC_CELL)
-        #     print(self.shortestPath)
-        #
-        #     self.move()
-        return
-
-    def pacturtle_ghost_contact(self, location_mapping):
-        # Checks if the pacturtle is close enough to the ghostturtle
-        x_delta_range = 0.5
-        y_delta_range = 0.5
-        pacturtle_x = location_mapping[PACTURTLE].position.x
-        pacturtle_y = location_mapping[PACTURTLE].position.y
-
-        for turtle, pose in location_mapping.items():
-            if turtle == PACTURTLE:
-                continue
-            position = pose.position
-            x = position.x
-            y = position.y
-            if abs(x - pacturtle_x) <= x_delta_range and abs(y - pacturtle_y) <= y_delta_range:
-                print("contact", x, pacturtle_x, y, pacturtle_y)
-                return True
-        return False
-
-
-    def model_states_received(self, data: ModelState):
-        # Callback for we receive model_states
-        self.model_states = data
-        location_mapping = {}
-        for turtle in self.init_pos.keys():
-            index = data.name.index(turtle)
-            location_mapping[turtle] = data.pose[index]
-        if (self.pacturtle_ghost_contact(location_mapping)):
-            self.reset_world()
         return
 
     def run(self):
         rospy.spin()
-
-def get_point_dist(point1: Point, point2: Point):
-    x1, y1, z1 = point1.x, point1.y, point1.z
-    x2, y2, z2 = point2.x, point2.y, point2.z
-    d = math.sqrt(math.pow(x2 - x1, 2) +
-                math.pow(y2 - y1, 2) +
-                math.pow(z2 - z1, 2)* 1.0)
-    return d
 
 if __name__ == "__main__":
     node = RedTurtle()
