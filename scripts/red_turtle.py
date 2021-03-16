@@ -153,7 +153,7 @@ class RedTurtle(object):
             direction = 270
             target_yaw = -1.5708
 
-        yaw_error = 0.13
+        yaw_error = 0.07
         current_yaw = self.get_yaw_from_pose(self.POSE)
         # Edge case when the robot should point leftward whereby yaw transitions from
         # 3.14 to -3.14. Use this if statement to catch the -3.14 edge case
@@ -174,23 +174,23 @@ class RedTurtle(object):
                 turning = False
         # Still need to turn, don't move forward yet
         if turning:
-            print(str(current_yaw) + '    ' + str(target_yaw))
             self.forward = False
             command = Twist()
-            command.angular.z = -0.5
+
+            # Check for cases where moving clockwise is better than default
+            # counter clockwise
+            # Bot wants to move from facing upward to facing right
+            if target_yaw == 0 and current_yaw > 0:
+                command.angular.z = -0.7
+            elif target_yaw == 3.1415 and current_yaw < 0:
+                command.angular.z = -0.7
+            elif target_yaw == -1.5708 and current_yaw < 1.5708 and current_yaw > -1.5708:
+                command.angular.z = -0.7
+            else:
+                command.angular.z = 0.5
+            print(str(current_yaw) + '      ' + str(target_yaw))
             self.command_pub.publish(command)
-
-        # if direction != self.PAST_DIRECTION:
-        #     angle = direction - self.PAST_DIRECTION
-        #     print('prev dir ' + str(self.PAST_DIRECTION))
-        #     print('direction ' + str(direction))
-        #     print('turning ' + str(angle))
-        #     if angle < 0:
-        #         angle = 360 + angle
-        #     self.turn_around(angle)
-        #     self.PAST_DIRECTION = direction
         else:
-
             self.forward = True
             # Range, in meters, required before bot recalculates shortest path
             error = 0.1
@@ -238,6 +238,25 @@ class RedTurtle(object):
             else:
                 command.linear.x = 0.3 * (1-gap)
                 self.command_pub.publish(command)
+
+    # To account for noise, use this command to see if current yaw is within error margin
+    # of target yaw
+    def approx_yaw(self, target_yaw, current_yaw, yaw_error):
+        turning = False
+        if target_yaw == 3.1415:
+            if current_yaw > 0:
+                if current_yaw < target_yaw + yaw_error and current_yaw > target_yaw - yaw_error:
+                    return True
+            else:
+                if current_yaw < -1*(target_yaw) + yaw_error and current_yaw > -1*(target_yaw) - yaw_error:
+                    return True
+                else:
+                    return False
+        else:
+            if current_yaw < target_yaw + yaw_error and current_yaw > target_yaw - yaw_error:
+                return True
+            else:
+                return False
 
     # Determines the coordinate value of the midpoint of a cell for the specificed axis
     # Add 0.5 to get the midpoint of the cell
@@ -303,8 +322,7 @@ class RedTurtle(object):
             self.RED_CELL = redturtle_cell
             self.PAC_CELL = pacturtle_cell
             self.shortest_path(self.RED_CELL, self.PAC_CELL)
-            # print('recalc path')
-            # print(self.shortestPath)
+            print(self.shortestPath)
             self.move()
         # Still moving forward, do not bother it until reached midpoint of target cell
         else:
