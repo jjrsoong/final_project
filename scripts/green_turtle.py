@@ -168,7 +168,7 @@ class Greenturtle(Ghostturtle):
                 twist.linear.x = -0.05
                 twist.angular.z = 0.3 if left_min < right_min else -0.3
             else: 
-                k = 0.3 if dist_to_branch < 1 else 0.1 
+                k = 0.3 if dist_to_branch < 1 else 0.5 
                 current_theta = euler_from_quaternion([
                     current_pos.orientation.x, 
                     current_pos.orientation.y, 
@@ -217,8 +217,9 @@ class Greenturtle(Ghostturtle):
                     print("branch found", new_particle_cloud[i], new_particle_cloud[i+1], i )
                     branch_point_center = [(new_particle_cloud[i][0] + new_particle_cloud[i+1][0])/2, (new_particle_cloud[i][1] + new_particle_cloud[i+1][1])/2]
                     branch_point_dist = math.sqrt((branch_point_center[0]) ** 2 + (branch_point_center[1]) ** 2)
-                    if branch_point_dist > 2:
+                    if branch_point_dist > 1.5:
                         continue
+                        
                     # check if this branch point is among one that we've branched to before 
                     branch_point_global_coord = [self.gps.position.x, self.gps.position.y]
                     branch_point_global_coord[0] += branch_point_center[0]
