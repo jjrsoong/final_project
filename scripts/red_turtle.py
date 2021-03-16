@@ -75,6 +75,18 @@ class RedTurtle(object):
                     adjacent.append(pos_adj)
             self.adjLists[node] = adjacent
 
+    def get_yaw_from_pose(self, p):
+        """ A helper function that takes in a Pose object (geometry_msgs) and returns yaw"""
+
+        yaw = (euler_from_quaternion([
+                p.orientation.x,
+                p.orientation.y,
+                p.orientation.z,
+                p.orientation.w])
+                [2])
+
+        return yaw
+
     # BFS, source: https://www.youtube.com/watch?v=PQhMkmhYZjQ
     def init_bfs_entities(self):
         self.parentList = {}
@@ -129,72 +141,103 @@ class RedTurtle(object):
         # Below 2 are conditions for moving along the x axis
         if target_cell == self.RED_CELL - 1:
             direction = 180
+            target_yaw = 3.1415
         elif target_cell == self.RED_CELL + 1:
             direction = 0
+            target_yaw = 0
         # Below 2 are conditions of moving along the y axis
         elif target_cell == self.RED_CELL + MAP_WIDTH:
             direction = 90
+            target_yaw = 1.5708
         else:
             direction = 270
+            target_yaw = -1.5708
 
-
-        if direction != self.PAST_DIRECTION:
-            angle = direction - self.PAST_DIRECTION
-            print('prev dir ' + str(self.PAST_DIRECTION))
-            print('direction ' + str(direction))
-            print('turning ' + str(angle))
-            if angle < 0:
-                angle = 360 + angle
-            self.turn_around(angle)
-            self.PAST_DIRECTION = direction
-
-        self.forward = True
-        # Range, in meters, required before bot recalculates shortest path
-        error = 0.1
-        axis = ''
-        command = Twist()
-        x_midpoint = self.find_midpoint(target_cell, "x")
-        y_midpoint = self.find_midpoint(target_cell, "y")
-
-        # If moving along the x axis (left or right), look at x coordinate to determine
-        # midpoint. Else, use y coordinate to detemrine proximity to cell midpoint
-        if direction == 0 or direction == 180:
-            axis = 'x'
-            # print('mid x ' + str(midpoint) + ' x pos ' + str(self.RED_POS.x))
-            # print(redturtle_data)
-            if x_midpoint - error < self.RED_POS.x and x_midpoint + error > self.RED_POS.x:
-                self.forward = False
-                print('stop forward x ' + str(self.RED_POS.x))
-        # Robot is moving along the y axis
+        yaw_error = 0.13
+        current_yaw = self.get_yaw_from_pose(self.POSE)
+        # Edge case when the robot should point leftward whereby yaw transitions from
+        # 3.14 to -3.14. Use this if statement to catch the -3.14 edge case
+        turning = False
+        if target_yaw == 3.1415:
+            if current_yaw > 0:
+                if current_yaw > target_yaw + yaw_error or current_yaw < target_yaw - yaw_error:
+                    turning = True
+            else:
+                if current_yaw > -1*(target_yaw) + yaw_error or current_yaw < -1*(target_yaw) - yaw_error:
+                    turning = True
+            # else:
+            #     turning = False
         else:
-            axis = 'y'
-            # print('mid y ' + str(midpoint) + ' y pos ' + str(self.RED_POS.y))
-            if y_midpoint - error < self.RED_POS.y and y_midpoint + error > self.RED_POS.y:
-                self.forward = False
-                print('stop forward y ' + str(self.RED_POS.y))
-
-        # Turning is not 100% accurate, use modelstate POS to make small adjustments
-        # during linear movement
-        adjustment = 3
-        gap = 0
-        if axis == 'x':
-            # Gap, in meters, between desired position and current position
-            gap = self.RED_POS.y - y_midpoint
-            command.angular.z = gap * adjustment
-        else:
-            gap = x_midpoint - self.RED_POS.x
-            command.angular.z = gap * adjustment
-
-
-
-        if not self.forward:
-            print('stop moving forward')
-            command.linear.x = 0
+            if current_yaw > target_yaw + yaw_error or current_yaw < target_yaw - yaw_error:
+                turning = True
+            else:
+                turning = False
+        # Still need to turn, don't move forward yet
+        if turning:
+            print(str(current_yaw) + '    ' + str(target_yaw))
+            self.forward = False
+            command = Twist()
+            command.angular.z = -0.5
             self.command_pub.publish(command)
-            rospy.sleep(1)
+
+        # if direction != self.PAST_DIRECTION:
+        #     angle = direction - self.PAST_DIRECTION
+        #     print('prev dir ' + str(self.PAST_DIRECTION))
+        #     print('direction ' + str(direction))
+        #     print('turning ' + str(angle))
+        #     if angle < 0:
+        #         angle = 360 + angle
+        #     self.turn_around(angle)
+        #     self.PAST_DIRECTION = direction
         else:
-            command.linear.x = 0.3 * (1-gap)
-            self.command_pub.publish(command)
+
+            self.forward = True
+            # Range, in meters, required before bot recalculates shortest path
+            error = 0.1
+            axis = ''
+            command = Twist()
+            x_midpoint = self.find_midpoint(target_cell, "x")
+            y_midpoint = self.find_midpoint(target_cell, "y")
+
+            # If moving along the x axis (left or right), look at x coordinate to determine
+            # midpoint. Else, use y coordinate to detemrine proximity to cell midpoint
+            if direction == 0 or direction == 180:
+                axis = 'x'
+                # print('mid x ' + str(midpoint) + ' x pos ' + str(self.RED_POS.x))
+                # print(redturtle_data)
+                if x_midpoint - error < self.RED_POS.x and x_midpoint + error > self.RED_POS.x:
+                    self.forward = False
+                    print('stop forward x ' + str(self.RED_POS.x))
+            # Robot is moving along the y axis
+            else:
+                axis = 'y'
+                # print('mid y ' + str(midpoint) + ' y pos ' + str(self.RED_POS.y))
+                if y_midpoint - error < self.RED_POS.y and y_midpoint + error > self.RED_POS.y:
+                    self.forward = False
+                    print('stop forward y ' + str(self.RED_POS.y))
+
+            # Turning is not 100% accurate, use modelstate POS to make small adjustments
+            # during linear movement
+            adjustment = 3
+            gap = 0
+            if axis == 'x':
+                # Gap, in meters, between desired position and current position
+                gap = self.RED_POS.y - y_midpoint
+                command.angular.z = gap * adjustment
+            else:
+                gap = x_midpoint - self.RED_POS.x
+                command.angular.z = gap * adjustment
+
+
+
+            if not self.forward:
+                print('stop moving forward')
+                command.linear.x = 0
+                self.command_pub.publish(command)
+                rospy.sleep(1)
+            else:
+                command.linear.x = 0.3 * (1-gap)
+                self.command_pub.publish(command)
 
     # Determines the coordinate value of the midpoint of a cell for the specificed axis
     # Add 0.5 to get the midpoint of the cell
@@ -254,13 +297,14 @@ class RedTurtle(object):
                 redturtle_data = data.pose[index]
                 redturtle_cell = self.determine_cell(redturtle_data.position)
                 self.RED_POS = redturtle_data.position
+                self.POSE = redturtle_data
         # # Bot at midpoint, calculate new shortest path from current cell
         if not self.forward:
             self.RED_CELL = redturtle_cell
             self.PAC_CELL = pacturtle_cell
             self.shortest_path(self.RED_CELL, self.PAC_CELL)
-            print('recalc path')
-            print(self.shortestPath)
+            # print('recalc path')
+            # print(self.shortestPath)
             self.move()
         # Still moving forward, do not bother it until reached midpoint of target cell
         else:
