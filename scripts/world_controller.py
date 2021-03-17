@@ -37,12 +37,18 @@ class WorldController(object):
 
         # Spawn point is 3 units to the right for ghosts
         self.spawn_point = {}
-        for key, value in self.init_pos.items():
-            if key == PACTURTLE:
-                continue
-            p = value
-            p.x += 3
-            self.spawn_point[key] = p
+        self.spawn_point[RED] = Point(x=0.5, y=0.5, z=0)
+        self.spawn_point[BLUE] = Point(x= 0.5, y=10.5, z=0)
+        self.spawn_point[GREEN] = Point(x=8.5, y=0.5, z=0)
+        self.spawn_point[YELLOW] = Point(x=8.5, y=10.5, z=0)
+
+        self.yaw_spawn = {}
+        rotate_90 = math.pi / 2
+        self.yaw_spawn[RED] = quaternion_from_euler(0, 0, -1 * rotate_90)
+        self.yaw_spawn[BLUE] = quaternion_from_euler(0, 0, rotate_90)
+        self.yaw_spawn[GREEN] = quaternion_from_euler(0, 0, -1 * rotate_90)
+        self.yaw_spawn[YELLOW] = quaternion_from_euler(0, 0, rotate_90)
+
 
         # Keep track of state to avoid sending duplicate messages
         self.reset_world_in_progress = False
@@ -76,15 +82,16 @@ class WorldController(object):
         return True 
 
     def sequentially_spawn_ghosts(self): 
-        # This doesn't really work yet XD 
+        print("Spawning ghosts")
         for (turtle, position) in self.spawn_point.items():
             p = Pose(position=position)
+            p.orientation.z = self.yaw_spawn[turtle][2]
             t = Twist(linear=Vector3(0, 0, 0), angular=Vector3(0, 0, 0))
             m_name = turtle
 
             model_state = ModelState(model_name=m_name, pose=p, twist=t)
             self.model_states_pub.publish(model_state)
-            break # For now just spawn 1
+            # break # For now just spawn 1
         
 
     def reset_world(self):
