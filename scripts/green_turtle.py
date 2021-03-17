@@ -172,9 +172,9 @@ class Greenturtle(Ghostturtle):
                 desired_angle = math.atan(pos_to_branch_loc[1] / pos_to_branch_loc[0])
                 # Angle correction
                 if pos_to_branch_loc[0] < 0 and pos_to_branch_loc[1] > 0:
-                    desired_angle = math.pi/2 - desired_angle
+                    desired_angle = math.pi - desired_angle
                 elif pos_to_branch_loc[0] < 0 and pos_to_branch_loc[1] < 0:
-                    desired_angle = math.pi/2 + desired_angle
+                    desired_angle = -1 * math.pi + desired_angle
 
                 correction = desired_angle - current_theta
                 if current_theta > 0 and desired_angle < 0:

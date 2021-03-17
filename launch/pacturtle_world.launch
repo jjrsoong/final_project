@@ -19,13 +19,13 @@
   <arg name="redghost_z_pos" default=" 0.0" />
   <arg name="redghost_yaw" default=" 0.0" />
 
-  <arg name="blueghost_x_pos" default=" 4.5" />
-  <arg name="blueghost_y_pos" default=" 8.5" />
+  <arg name="blueghost_x_pos" default=" 3.5" />
+  <arg name="blueghost_y_pos" default=" 9.5" />
   <arg name="blueghost_z_pos" default=" 0.0" />
   <arg name="blueghost_yaw" default=" 0.0" />
 
-  <arg name="greenghost_x_pos" default=" 3.5" />
-  <arg name="greenghost_y_pos" default=" 9.5" />
+  <arg name="greenghost_x_pos" default=" 4.5" />
+  <arg name="greenghost_y_pos" default=" 8.5" />
   <arg name="greenghost_z_pos" default=" 0.0" />
   <arg name="greenghost_yaw" default=" 0.0" />
 

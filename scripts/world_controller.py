@@ -31,15 +31,15 @@ class WorldController(object):
 
         self.init_pos[PACTURTLE] = Point(x=2, y=5, z=0)
         self.init_pos[RED] = Point(x=3.5, y=8.5, z=0)
-        self.init_pos[BLUE] = Point(x=4.5, y=8.5, z=0)
-        self.init_pos[GREEN] = Point(x=3.5, y=9.5, z=0)
+        self.init_pos[GREEN] = Point(x=4.5, y=8.5, z=0)
+        self.init_pos[BLUE] = Point(x=3.5, y=9.5, z=0)
         self.init_pos[YELLOW] = Point(x=4.5, y=9.5, z=0)
 
         # Spawn point is 3 units to the right for ghosts
         self.spawn_point = {}
         self.spawn_point[RED] = Point(x=0.5, y=0.5, z=0)
-        self.spawn_point[BLUE] = Point(x= 0.5, y=10.5, z=0)
-        self.spawn_point[GREEN] = Point(x=8.5, y=0.5, z=0)
+        self.spawn_point[GREEN] = Point(x= 0.5, y=10.5, z=0)
+        self.spawn_point[BLUE] = Point(x=8.5, y=0.5, z=0)
         self.spawn_point[YELLOW] = Point(x=8.5, y=10.5, z=0)
 
         self.yaw_spawn = {}
