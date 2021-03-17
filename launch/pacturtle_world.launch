@@ -110,5 +110,11 @@
   <!-- Note: Change launch-prefix if not on linux machine -->
   <node pkg="final_project" type="pacturtle_teleop_key.py" name="turtlebot3_teleop_keyboard"  output="screen" launch-prefix="gnome-terminal -- ">
   </node>
+
+  <!-- Set up for rviz -->
+  <!-- Run a transformation between the robot and its laser -->
+  <node pkg="tf" type="static_transform_publisher" name="link2_broadcaster" args="-0.1524 0.0 0.1016 0 0 0 /base_footprint /greenghost/base_scan 100" />
+  <!-- Run a transformation between the robot and its RGB camera  -->
+  <node pkg="tf" type="static_transform_publisher" name="link3_broadcaster" args="0.0 0.0 0.1016 0 0 0 /base_footprint /greenghost/camera_rgb_optical_frame 100" />
   
 </launch>
