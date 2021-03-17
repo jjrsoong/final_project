@@ -12,20 +12,20 @@ from queue import Queue
 from random import shuffle
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
-RED = "redghost"
+YELLOW = "yellowghost"
 PACTURTLE = "pacturtle"
 MAP_WIDTH = 9
 MAP_HEIGHT = 11
-PAC_CELL = 0
-RED_CELL = 0
+INTEREST_PT = 0
+YELLOW_CELL = 0
 
-class RedTurtle(object):
+class YellowTurtle(object):
     def __init__(self):
 
         # rospy.sleep(1)
 
         # initialize this node
-        rospy.init_node('final_project_red_turtle')
+        rospy.init_node('final_project_yellow_turtle')
 
         self.unpack_adjMatrix()
         self.create_adjLists()
@@ -34,25 +34,23 @@ class RedTurtle(object):
         # save initial positions
         self.init_pos = {}
         self.init_pos[PACTURTLE] = Point(x=2, y=5, z=0)
-        self.init_pos[RED] = Point(x=0.5, y=0.5, z=0)
+        self.init_pos[YELLOW] = Point(x=8.5, y=10.5, z=0)
 
-        self.PAC_CELL = 0
-        self.RED_CELL = 0
-        # Ghost is initialized facing right (defined as 0 degree)
-        self.PAST_DIRECTION = 0
+        self.INTEREST_PT = 33
+        self.YELLOW_CELL = 0
         # Initially stationary (not moving forward)
         self.forward = False
+        # Initially has not spotted Pacturtle with camera
+        self.sighted = False
 
         # Subscribe to model states
         rospy.Subscriber("/gazebo/model_states", ModelStates,
                          self.turtle_hunter)
 
         # Command Vel pub
-        self.command_pub = rospy.Publisher("/redghost/cmd_vel", Twist, queue_size=10)
-
+        self.command_pub = rospy.Publisher("/yellowghost/cmd_vel", Twist, queue_size=10)
 
         rospy.sleep(1)
-
         self.run()
 
     # Unpack the adjaceny matrix text file into an array
@@ -130,27 +128,40 @@ class RedTurtle(object):
         path.reverse()
         self.shortestPath = path
 
+    # Helper function that update INTEREST_PT once yellow turtle has reached
+    # current point of interest
+    # Although interest points are current hardcoded, future work could encompass
+    # many points of interest dynamic
+    def checkpoint(self):
+        if self.YELLOW_CELL == 33:
+            self.INTEREST_PT = 48
+        elif self.YELLOW_CELL == 48:
+            self.INTEREST_PT = 78
+
     def move(self):
+        # Check if turtle is at point of interest. If so and pacturtle has not been spotted,
+        # move to next point of interest
+        self.checkpoint()
         # Find the next cell to traverse to
         # Required step since, depending on exact coordinates, shortestPath
         # may or many not include cell the bot is currently in (if it does, need to
         # ignore current cell and take the next one)
         target_cell = 0
         for next_cell in self.shortestPath:
-            if self.RED_CELL != next_cell:
+            if self.YELLOW_CELL != next_cell:
                 target_cell = next_cell
                 break
         # Determine direction of target cell relative to current cell
         # Below 2 are conditions for moving along the x axis
         # If target cell is to the left
-        if target_cell == self.RED_CELL - 1:
+        if target_cell == self.YELLOW_CELL - 1:
             target_yaw = 3.1415
         # If target cell is to the right
-        elif target_cell == self.RED_CELL + 1:
+        elif target_cell == self.YELLOW_CELL + 1:
             target_yaw = 0
         # Below 2 are conditions of moving along the y axis
         # If target cell is to the top
-        elif target_cell == self.RED_CELL + MAP_WIDTH:
+        elif target_cell == self.YELLOW_CELL + MAP_WIDTH:
             target_yaw = 1.5708
         # If target cell is to the bottom
         else:
@@ -197,39 +208,20 @@ class RedTurtle(object):
             self.forward = True
             # Margin of error allowed before bot recalculates shortest path
             error = 0.1
-            # TODO delete
-            # axis = ''
             command = Twist()
             x_midpoint = self.find_midpoint(target_cell, "x")
             y_midpoint = self.find_midpoint(target_cell, "y")
 
             # Robot is moving along the x axis, check if it has reached midpoint of next cell
             if target_yaw == 0 or target_yaw == 3.1415:
-                axis = 'x'
-                # TODO delete
-                # print('mid x ' + str(midpoint) + ' x pos ' + str(self.RED_POS.x))
-                if x_midpoint - error < self.RED_POS.x and x_midpoint + error > self.RED_POS.x:
+                if x_midpoint - error < self.YELLOW_POS.x and x_midpoint + error > self.YELLOW_POS.x:
                     self.forward = False
-                    print('stop forward x ' + str(self.RED_POS.x))
+                    print('stop forward x ' + str(self.YELLOW_POS.x))
             # Robot is moving along the y axis, check if it has reached midpoint of next cell
             else:
-                # axis = 'y' TODO delete
-                if y_midpoint - error < self.RED_POS.y and y_midpoint + error > self.RED_POS.y:
+                if y_midpoint - error < self.YELLOW_POS.y and y_midpoint + error > self.YELLOW_POS.y:
                     self.forward = False
-                    print('stop forward y ' + str(self.RED_POS.y))
-
-            # TODO - delete, out of date with new way of turning (orientation)
-            # Turning is not 100% accurate, use modelstate POS to make small adjustments
-            # during linear movement
-            # adjustment = 3
-            gap = 0
-            # if axis == 'x':
-            #     # Gap, in meters, between desired position and current position
-            #     gap = self.RED_POS.y - y_midpoint
-            #     command.angular.z = gap * adjustment
-            # else:
-            #     gap = x_midpoint - self.RED_POS.x
-            #     command.angular.z = gap * adjustment
+                    print('stop forward y ' + str(self.YELLOW_POS.y))
 
             if not self.forward:
                 print('stop moving forward')
@@ -237,7 +229,7 @@ class RedTurtle(object):
                 self.command_pub.publish(command)
                 rospy.sleep(1)
             else:
-                command.linear.x = 0.3 * (1-gap)
+                command.linear.x = 0.3
                 self.command_pub.publish(command)
 
     # Determines the coordinate value of the midpoint of a cell for the specificed axis
@@ -256,36 +248,35 @@ class RedTurtle(object):
         cell = MAP_WIDTH * row + column
         return cell
 
-    # Callback function that extracts ModelState data and calls mvoe() command
+    # Callback function that extracts ModelState data and calls move() command
     def turtle_hunter(self, data: ModelState):
-        # Extract Location of Red Turtle and Pacturtle
+        # Extract Location of Yellow Turtle and Pacturtle
         pacturtle_data = Pose()
         pacturtle_cell = 0
-        redturtle_data = Pose()
-        redturtle_cell = 0
+        yellowturtle_data = Pose()
+        yellowturtle_cell = 0
         for turtle in self.init_pos.keys():
             index = data.name.index(turtle)
-            if turtle == PACTURTLE:
-                pacturtle_data = data.pose[index]
-                pacturtle_cell = self.determine_cell(pacturtle_data.position)
+            if turtle == YELLOW:
+                yellowturtle_data = data.pose[index]
+                yellowturtle_cell = self.determine_cell(yellowturtle_data.position)
+                self.YELLOW_POS = yellowturtle_data.position
+                self.POSE = yellowturtle_data
+        if not self.sighted:
+            # Bot at midpoint, calculate new shortest path from current cell
+            if not self.forward:
+                self.YELLOW_CELL = yellowturtle_cell
+                self.shortest_path(self.YELLOW_CELL, self.INTEREST_PT)
+                self.move()
+            # Still moving forward, do not bother it until reaches midpoint of target cell
             else:
-                redturtle_data = data.pose[index]
-                redturtle_cell = self.determine_cell(redturtle_data.position)
-                self.RED_POS = redturtle_data.position
-                self.POSE = redturtle_data
-        # # Bot at midpoint, calculate new shortest path from current cell
-        if not self.forward:
-            self.RED_CELL = redturtle_cell
-            self.PAC_CELL = pacturtle_cell
-            self.shortest_path(self.RED_CELL, self.PAC_CELL)
-            self.move()
-        # Still moving forward, do not bother it until reaches midpoint of target cell
-        else:
-            self.move()
+                self.move()
+        # TODO - added in camera tracking and hutning code here
+        # else:
         return
 
     def run(self):
         rospy.spin()
 
 if __name__ == "__main__":
-    node = RedTurtle()
+    node = YellowTurtle()
