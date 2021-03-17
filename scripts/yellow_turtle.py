@@ -8,9 +8,15 @@ from q_learning_project.msg import QLearningReward
 from std_msgs.msg import Header
 from numpy import genfromtxt
 from queue import Queue
+from sensor_msgs.msg import Image
 
 from random import shuffle
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
+
+import math
+import numpy as np
+import cv2
+import cv_bridge
 
 YELLOW = "yellowghost"
 PACTURTLE = "pacturtle"
@@ -47,11 +53,58 @@ class YellowTurtle(object):
         rospy.Subscriber("/gazebo/model_states", ModelStates,
                          self.turtle_hunter)
 
+        self.bridge = cv_bridge.CvBridge()
+
+        # ROS subscribe to robot's RGB camera data stream
+        self.image = Image()
+        self.image_sub = rospy.Subscriber(
+            f"{YELLOW}/camera/rgb/image_raw", Image, self.image_received)
+
         # Command Vel pub
         self.command_pub = rospy.Publisher("/yellowghost/cmd_vel", Twist, queue_size=10)
 
         rospy.sleep(1)
         self.run()
+
+    def image_received(self, data:Image):
+        self.image = data
+
+        image = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        # 255 108 10 rgba for orange
+        lower_color = np.array([10, 125, 78])
+        upper_color = np.array([22, 255, 255])
+        
+        # Masking only valid colors
+        mask = cv2.inRange(hsv, lower_color, upper_color)
+        
+        # Shape info
+        h, w, d = image.shape
+
+        # using moments() function, determine the center of the pixels
+        M = cv2.moments(mask)
+
+        if M['m00'] > 0:
+            # determine the center of the pixels in the image
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            # visualize a yellow circle in our debugging window to indicate
+            # the center point of the yellow pixels
+            cv2.circle(image, (cx, cy), 20, (255, 255, 0), -1)
+            print(M['m00'])
+            # proportional control to have the robot follow the pixels
+            print("TARGET LOCATED, TERMINATING")
+            err = w/2 - cx
+            k_p = 1.0 / 1000.0
+            twist = Twist()
+            twist.linear.x = 0.2
+            twist.angular.z = k_p * err
+            self.command_pub.publish(twist)
+            self.sighted = True
+        else: 
+            if self.sighted == True:
+                self.sighted = False
+        return
 
     # Unpack the adjaceny matrix text file into an array
     # Note the generated matrix has one too many values -- the newline
@@ -272,7 +325,9 @@ class YellowTurtle(object):
             else:
                 self.move()
         # TODO - added in camera tracking and hutning code here
-        # else:
+        else:
+            # Action handled in image callback 
+            return
         return
 
     def run(self):

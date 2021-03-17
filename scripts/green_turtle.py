@@ -155,13 +155,13 @@ class Greenturtle(Ghostturtle):
             twist = Twist()
 
             # Check if we're too close to a wall
-            left_min = min(self.current_laser_data.ranges[310:320])
-            right_min = min(self.current_laser_data.ranges[40:50])
+            left_min = min(self.current_laser_data.ranges[310:350])
+            right_min = min(self.current_laser_data.ranges[10:50])
             dist = min(left_min, right_min)
             if dist < 0.4:
                 print("too close, backing off 2")
-                twist.linear.x = -0.1
-                twist.angular.z = 0.3 if left_min < right_min else -0.3
+                twist.linear.x = -0.2
+                twist.angular.z = 0.4 if left_min < right_min else -0.4
             else: 
                 k = 0.3 if dist_to_branch < 1 else 0.5
                 current_theta = euler_from_quaternion([
@@ -275,6 +275,9 @@ class Greenturtle(Ghostturtle):
                 self.branch_loc.x += ((branches[closest_branch_index][0][0] + branches[closest_branch_index][2][0]) / 2)
                 self.branch_loc.y += ((branches[closest_branch_index][0][1] + branches[closest_branch_index][2][1]) / 2)
                 self.visited.add(int(self.branch_loc.x) + int(self.branch_loc.y) * 9)
+                if len(self.visited) >= 10:
+                    # Reset visited after visiting a considerable amount of branches 
+                    self.visited = set()
                 print("moving", (branches[closest_branch_index][0][0] + branches[closest_branch_index][2][0]) / 2, (branches[closest_branch_index][0][1] + branches[closest_branch_index][2][1]) / 2)
                 print("going to", self.branch_loc.x, self.branch_loc.y)
                 self.branch_direction = "left" if theta > (math.pi) else "right"
