@@ -17,6 +17,8 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 from ghostturtle import Ghostturtle
 import math
 import numpy as np
+import cv2
+import cv_bridge
 # name constants
 PACTURTLE = "pacturtle"
 RED = "redghost"
@@ -54,6 +56,9 @@ class Greenturtle(Ghostturtle):
         # Keep track of visited branch cells
         self.visited = set()
 
+        self.bridge = cv_bridge.CvBridge()
+
+
         self.run()
 
     def laser_scan_callback(self, data: LaserScan):
@@ -63,8 +68,43 @@ class Greenturtle(Ghostturtle):
     def gps_callback(self, data: Pose):
         self.gps = data
 
-    def image_callback(self, data):
-        # TODO: Check if pacturtle color is present, and toggle mode
+    def image_callback(self, data: Image):
+        self.image = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
+        image = self.image
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        # 255 108 10 rgba for orange
+        lower_color = np.array([10, 125, 78])
+        upper_color = np.array([22, 255, 255])
+        
+        # Masking only valid colors
+        mask = cv2.inRange(hsv, lower_color, upper_color)
+        
+        # Shape info
+        h, w, d = image.shape
+
+        # using moments() function, determine the center of the pixels
+        M = cv2.moments(mask)
+
+        if M['m00'] > 0:
+            # determine the center of the pixels in the image
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            # visualize a yellow circle in our debugging window to indicate
+            # the center point of the yellow pixels
+            cv2.circle(image, (cx, cy), 20, (255, 255, 0), -1)
+            print(M['m00'])
+            # proportional control to have the robot follow the pixels
+            print("TARGET LOCATED, TERMINATING")
+            err = w/2 - cx
+            k_p = 1.0 / 1000.0
+            twist = Twist()
+            twist.linear.x = 0.2
+            twist.angular.z = k_p * err
+            self.cmd_vel_pub.publish(twist)
+            self.mode = HUNT
+        else: 
+            if self.mode == HUNT:
+                self.mode = EXPLORE
         return
 
     def move_forward(self):
@@ -89,53 +129,8 @@ class Greenturtle(Ghostturtle):
         print(twist.angular.z)
         self.cmd_vel_pub.publish(twist)
 
-        # # Move forward while staying center of 2 walls
-        # left = max(self.current_laser_data.ranges[260:290])
-        # right = max(self.current_laser_data.ranges[70:100])
-        # twist = Twist()
-        # twist.linear.x = 0.1
-        # k = 0.5
-        # twist.angular.z = k * abs(left - right) * (1 if left < right else -1)
-        # self.cmd_vel_pub.publish(twist)
-
-        # # Move forward while staying near the center 2
-        # top_left = min(self.current_laser_data.ranges[310:320])
-        # top_right = min(self.current_laser_data.ranges[40:50])
-        # bot_left = min(self.current_laser_data.ranges[220:230])
-        # bot_right = min(self.current_laser_data.ranges[130:140])
-        # front = min(self.current_laser_data.ranges[:30] + self.current_laser_data.ranges[330:])
-        # if front < 0.3:
-        #     print("too close, backing off")
-        #     twist.linear.x = -0.05
-        #     twist.angular.z = 0.3 if top_left < top_right else -0.3
-        # else:
-        #     top_diff = top_right-top_left
-        #     bot_diff = bot_right-bot_left
-        #     k = 0.5
-        #     twist.angular.z = top_diff * k + bot_diff * k
-        # self.cmd_vel_pub.publish(twist)  
-
     def move_to_branch(self):
-        # print("moving to branch")
-        # travelled_time = rospy.Time.now().to_sec() - self.branch_time
-        # distance_travelled = self.move_to_branch_speed * travelled_time
-        # twist = Twist()
-        # print("travelled", distance_travelled, self.branch_dist)
-        # if distance_travelled >= self.branch_dist:
-        #     # rotate to branch 
-        #     print("rotating", self.branch_direction)
-        #     twist.angular.z = (math.pi / 8 if self.branch_direction == "right" else -1 * math.pi / 8)
-        #     twist.linear.x = 0
-        #     self.cmd_vel_pub.publish(twist)
-        #     rospy.sleep(4)
-        #     self.mode = EXPLORE
-        #     self.branch_dist = 0
-        # else:
-        #     # TODO: Move to branch location while avoiding collisions
-        #     self.move_forward()
-        #     # Should use gps data 
         current_pos = self.gps 
-        # Move forward in current orientation 
 
         pos_to_branch_loc = [self.branch_loc.x - current_pos.position.x, self.branch_loc.y - current_pos.position.y]
         dist_to_branch = np.linalg.norm(pos_to_branch_loc)
@@ -160,27 +155,53 @@ class Greenturtle(Ghostturtle):
             twist = Twist()
 
             # Check if we're too close to a wall
-            left_min = min(self.current_laser_data.ranges[315:])
-            right_min = min(self.current_laser_data.ranges[:45])
+            left_min = min(self.current_laser_data.ranges[310:320])
+            right_min = min(self.current_laser_data.ranges[40:50])
             dist = min(left_min, right_min)
             if dist < 0.4:
                 print("too close, backing off 2")
-                twist.linear.x = -0.05
+                twist.linear.x = -0.1
                 twist.angular.z = 0.3 if left_min < right_min else -0.3
             else: 
-                k = 0.3 if dist_to_branch < 1 else 0.5 
+                k = 0.3 if dist_to_branch < 1 else 0.5
                 current_theta = euler_from_quaternion([
                     current_pos.orientation.x, 
                     current_pos.orientation.y, 
                     current_pos.orientation.z, 
                     current_pos.orientation.w])[2]
-                twist.angular.z = k * (math.atan(pos_to_branch_loc[1] / pos_to_branch_loc[0]) - current_theta)
+                desired_angle = math.atan(pos_to_branch_loc[1] / pos_to_branch_loc[0])
+                # Angle correction
+                if pos_to_branch_loc[0] < 0 and pos_to_branch_loc[1] > 0:
+                    desired_angle = math.pi/2 - desired_angle
+                elif pos_to_branch_loc[0] < 0 and pos_to_branch_loc[1] < 0:
+                    desired_angle = math.pi/2 + desired_angle
+
+                correction = desired_angle - current_theta
+                if current_theta > 0 and desired_angle < 0:
+                    if current_theta - math.pi < desired_angle:
+                        # shortest path is clockwise 
+                        correction = abs(desired_angle - current_theta) * -1
+                    else:
+                        # shortest path is counter clockwise
+                        correction = math.pi - current_theta + desired_angle + math.pi
+                elif current_theta < 0 and desired_angle > 0:
+                    if current_theta + math.pi < desired_angle:
+                        # shortest path is clockwise 
+                        correction = abs(math.pi - desired_angle + math.pi - current_theta) * -1 
+                    else:
+                        # shortest path is counter clockwise 
+                        correction = desired_angle + current_theta * -1
+                    
+                twist.angular.z = k * (correction) / math.pi
+
                 twist.linear.x = 0.1 if dist_to_branch > 1 else 0.05
-                print(f"""current pos {current_pos.position.x}/{self.branch_loc.x} {current_pos.position.y}/{self.branch_loc.y} 
+                print(f"""
+                pos_to_branch_loc {pos_to_branch_loc[0]} {pos_to_branch_loc[1]}
+                current pos {current_pos.position.x}/{self.branch_loc.x} {current_pos.position.y}/{self.branch_loc.y} 
                 dist: {dist_to_branch}
                 curren_theta: {current_theta}
                 angular z: {twist.angular.z}
-                desired_z: {math.atan(pos_to_branch_loc[0] / pos_to_branch_loc[1])}
+                desired_z: {desired_angle}
                 """, end='\r')
 
             self.cmd_vel_pub.publish(twist)
