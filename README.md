@@ -1,4 +1,4 @@
-##Writeup
+## Writeup
 Yves Shum, Joshua Soong
 
 ### `Program Run Instructions`
