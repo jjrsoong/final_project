@@ -32,14 +32,21 @@ HUNT = "hunt"
 
 
 class Blueturtle(Ghostturtle):
+    """Class for the behaviour of Blueturtle
+
+    Args:
+        Ghostturtle (Class)
+    """
     def __init__(self):
+        # Calls Ghostturtle's init function with the given arguments
         super().__init__(BLUE, self.laser_scan_callback,
                          self.image_callback, self.action_loop)
 
         # Explore vs hunting mode toggle
         self.mode = EXPLORE
-        self.bridge = cv_bridge.CvBridge()
 
+        # Set up cv2
+        self.bridge = cv_bridge.CvBridge()
 
         self.run()
 
@@ -48,6 +55,11 @@ class Blueturtle(Ghostturtle):
         return
 
     def image_callback(self, data: Image):
+        """Given an image, checks if Pacturtle is in sight. If so changes mode to Hunting and charges at it
+
+        Args:
+            data (Image): Image data
+        """
         self.image = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
         image = self.image
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -71,9 +83,7 @@ class Blueturtle(Ghostturtle):
             # visualize a yellow circle in our debugging window to indicate
             # the center point of the yellow pixels
             cv2.circle(image, (cx, cy), 20, (255, 255, 0), -1)
-            print(M['m00'])
             # proportional control to have the robot follow the pixels
-            print("TARGET LOCATED, TERMINATING")
             err = w/2 - cx
             k_p = 1.0 / 1000.0
             twist = Twist()
@@ -87,7 +97,8 @@ class Blueturtle(Ghostturtle):
         return
 
     def move_forward(self):
-        print("moving forward")
+        """Function to move turtle forward while avoiding obstacles 
+        """
         # Move forward while avoiding obstacles
         twist = Twist()
         twist.linear.x = 0.3
@@ -98,7 +109,6 @@ class Blueturtle(Ghostturtle):
         dist = min(left_min, right_min)
         if dist < 0.4:
             # Too close
-            print("too close, backing off")
             twist.linear.x = -0.1
             twist.angular.z = 0.3 if np.random.random() > 0.5 else -0.3
         else:
