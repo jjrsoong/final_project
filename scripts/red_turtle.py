@@ -22,11 +22,10 @@ RED_CELL = 0
 class RedTurtle(object):
     def __init__(self):
 
-        # rospy.sleep(1)
-
         # initialize this node
         rospy.init_node('final_project_red_turtle')
 
+        # initial prep for BFS algorithm
         self.unpack_adjMatrix()
         self.create_adjLists()
         self.init_bfs_entities()
@@ -38,8 +37,6 @@ class RedTurtle(object):
 
         self.PAC_CELL = 0
         self.RED_CELL = 0
-        # Ghost is initialized facing right (defined as 0 degree)
-        self.PAST_DIRECTION = 0
         # Initially stationary (not moving forward)
         self.forward = False
 
@@ -49,7 +46,6 @@ class RedTurtle(object):
 
         # Command Vel pub
         self.command_pub = rospy.Publisher("/redghost/cmd_vel", Twist, queue_size=10)
-
 
         rospy.sleep(1)
 
@@ -70,11 +66,12 @@ class RedTurtle(object):
         for node in range(0, 99):
             adjacent = []
             for pos_adj in range(0, 99):
-                # Checks adjacen matrix to see if pos_adj is a valid adjancent cell
+                # Checks adjacent matrix to see if pos_adj is a valid adjancent cell
                 if self.matrix[node][pos_adj] == 1:
                     adjacent.append(pos_adj)
             self.adjLists[node] = adjacent
 
+    # Helper function from previous project
     def get_yaw_from_pose(self, p):
         """ A helper function that takes in a Pose object (geometry_msgs) and returns yaw"""
 
@@ -87,11 +84,11 @@ class RedTurtle(object):
 
         return yaw
 
-    # BFS, source: https://www.youtube.com/watch?v=PQhMkmhYZjQ
+    # BFS implementation, Source: PyVision Youtube Video
     def init_bfs_entities(self):
         self.parentList = {}
         for source in range(0, 99):
-            # Create and initialize required var to "empty" position
+            # Create and initialize required vars to "empty" position
             visited = {}
             dist = {}
             parent = {}
@@ -130,6 +127,7 @@ class RedTurtle(object):
         path.reverse()
         self.shortestPath = path
 
+    # Executes linear and angular movements
     def move(self):
         # Find the next cell to traverse to
         # Required step since, depending on exact coordinates, shortestPath
@@ -142,17 +140,17 @@ class RedTurtle(object):
                 break
         # Determine direction of target cell relative to current cell
         # Below 2 are conditions for moving along the x axis
-        # If target cell is to the left
+        # If target cell is to the left:
         if target_cell == self.RED_CELL - 1:
             target_yaw = 3.1415
-        # If target cell is to the right
+        # If target cell is to the right:
         elif target_cell == self.RED_CELL + 1:
             target_yaw = 0
         # Below 2 are conditions of moving along the y axis
-        # If target cell is to the top
+        # If target cell is to the top:
         elif target_cell == self.RED_CELL + MAP_WIDTH:
             target_yaw = 1.5708
-        # If target cell is to the bottom
+        # If target cell is to the bottom:
         else:
             target_yaw = -1.5708
 
@@ -187,18 +185,15 @@ class RedTurtle(object):
                 command.angular.z = -0.7
             elif target_yaw == -1.5708 and current_yaw < 1.5708 and current_yaw > -1.5708:
                 command.angular.z = -0.7
-            # Default if counter clockwise
             else:
                 command.angular.z = 0.5
-            # print(str(current_yaw) + '      ' + str(target_yaw))
+
             self.command_pub.publish(command)
+
         # Turning has completed, can begin moving forward
         else:
             self.forward = True
-            # Margin of error allowed before bot recalculates shortest path
             error = 0.1
-            # TODO delete
-            # axis = ''
             command = Twist()
             x_midpoint = self.find_midpoint(target_cell, "x")
             y_midpoint = self.find_midpoint(target_cell, "y")
@@ -206,30 +201,14 @@ class RedTurtle(object):
             # Robot is moving along the x axis, check if it has reached midpoint of next cell
             if target_yaw == 0 or target_yaw == 3.1415:
                 axis = 'x'
-                # TODO delete
-                # print('mid x ' + str(midpoint) + ' x pos ' + str(self.RED_POS.x))
                 if x_midpoint - error < self.RED_POS.x and x_midpoint + error > self.RED_POS.x:
                     self.forward = False
                     print('stop forward x ' + str(self.RED_POS.x))
             # Robot is moving along the y axis, check if it has reached midpoint of next cell
             else:
-                # axis = 'y' TODO delete
                 if y_midpoint - error < self.RED_POS.y and y_midpoint + error > self.RED_POS.y:
                     self.forward = False
                     print('stop forward y ' + str(self.RED_POS.y))
-
-            # TODO - delete, out of date with new way of turning (orientation)
-            # Turning is not 100% accurate, use modelstate POS to make small adjustments
-            # during linear movement
-            # adjustment = 3
-            gap = 0
-            # if axis == 'x':
-            #     # Gap, in meters, between desired position and current position
-            #     gap = self.RED_POS.y - y_midpoint
-            #     command.angular.z = gap * adjustment
-            # else:
-            #     gap = x_midpoint - self.RED_POS.x
-            #     command.angular.z = gap * adjustment
 
             if not self.forward:
                 print('stop moving forward')
@@ -237,7 +216,7 @@ class RedTurtle(object):
                 self.command_pub.publish(command)
                 rospy.sleep(1)
             else:
-                command.linear.x = 0.3 * (1-gap)
+                command.linear.x = 0.3
                 self.command_pub.publish(command)
 
     # Determines the coordinate value of the midpoint of a cell for the specificed axis
@@ -256,7 +235,7 @@ class RedTurtle(object):
         cell = MAP_WIDTH * row + column
         return cell
 
-    # Callback function that extracts ModelState data and calls mvoe() command
+    # Callback function that extracts ModelState data and calls move() command
     def turtle_hunter(self, data: ModelState):
         # Extract Location of Red Turtle and Pacturtle
         pacturtle_data = Pose()
@@ -273,7 +252,7 @@ class RedTurtle(object):
                 redturtle_cell = self.determine_cell(redturtle_data.position)
                 self.RED_POS = redturtle_data.position
                 self.POSE = redturtle_data
-        # # Bot at midpoint, calculate new shortest path from current cell
+        # Bot at midpoint, calculate new shortest path from current cell
         if not self.forward:
             self.RED_CELL = redturtle_cell
             self.PAC_CELL = pacturtle_cell

@@ -28,8 +28,6 @@ YELLOW_CELL = 0
 class YellowTurtle(object):
     def __init__(self):
 
-        # rospy.sleep(1)
-
         # initialize this node
         rospy.init_node('final_project_yellow_turtle')
 
@@ -74,10 +72,10 @@ class YellowTurtle(object):
         # 255 108 10 rgba for orange
         lower_color = np.array([10, 125, 78])
         upper_color = np.array([22, 255, 255])
-        
+
         # Masking only valid colors
         mask = cv2.inRange(hsv, lower_color, upper_color)
-        
+
         # Shape info
         h, w, d = image.shape
 
@@ -101,7 +99,7 @@ class YellowTurtle(object):
             twist.angular.z = k_p * err
             self.command_pub.publish(twist)
             self.sighted = True
-        else: 
+        else:
             if self.sighted == True:
                 self.sighted = False
         return
@@ -126,6 +124,7 @@ class YellowTurtle(object):
                     adjacent.append(pos_adj)
             self.adjLists[node] = adjacent
 
+    # Helper function from previous project
     def get_yaw_from_pose(self, p):
         """ A helper function that takes in a Pose object (geometry_msgs) and returns yaw"""
 
@@ -138,11 +137,11 @@ class YellowTurtle(object):
 
         return yaw
 
-    # BFS, source: https://www.youtube.com/watch?v=PQhMkmhYZjQ
+    # BFS implementation, Source: PyVision Youtube Video
     def init_bfs_entities(self):
         self.parentList = {}
         for source in range(0, 99):
-            # Create and initialize required var to "empty" position
+            # Create and initialize required vars to "empty" position
             visited = {}
             dist = {}
             parent = {}
@@ -181,7 +180,7 @@ class YellowTurtle(object):
         path.reverse()
         self.shortestPath = path
 
-    # Helper function that update INTEREST_PT once yellow turtle has reached
+    # Helper function that updates INTEREST_PT once yellow turtle has reached
     # current point of interest
     # Although interest points are current hardcoded, future work could encompass
     # many points of interest dynamic
@@ -190,7 +189,10 @@ class YellowTurtle(object):
             self.INTEREST_PT = 48
         elif self.YELLOW_CELL == 48:
             self.INTEREST_PT = 78
+        elif self.YELLOW_CELL == 78:
+            self.INTEREST_PT = 33
 
+    # Executes linear and angular movements
     def move(self):
         # Check if turtle is at point of interest. If so and pacturtle has not been spotted,
         # move to next point of interest
@@ -206,17 +208,17 @@ class YellowTurtle(object):
                 break
         # Determine direction of target cell relative to current cell
         # Below 2 are conditions for moving along the x axis
-        # If target cell is to the left
+        # If target cell is to the left:
         if target_cell == self.YELLOW_CELL - 1:
             target_yaw = 3.1415
-        # If target cell is to the right
+        # If target cell is to the right:
         elif target_cell == self.YELLOW_CELL + 1:
             target_yaw = 0
         # Below 2 are conditions of moving along the y axis
-        # If target cell is to the top
+        # If target cell is to the top:
         elif target_cell == self.YELLOW_CELL + MAP_WIDTH:
             target_yaw = 1.5708
-        # If target cell is to the bottom
+        # If target cell is to the bottom:
         else:
             target_yaw = -1.5708
 
@@ -251,15 +253,13 @@ class YellowTurtle(object):
                 command.angular.z = -0.7
             elif target_yaw == -1.5708 and current_yaw < 1.5708 and current_yaw > -1.5708:
                 command.angular.z = -0.7
-            # Default if counter clockwise
             else:
                 command.angular.z = 0.5
-            # print(str(current_yaw) + '      ' + str(target_yaw))
+
             self.command_pub.publish(command)
         # Turning has completed, can begin moving forward
         else:
             self.forward = True
-            # Margin of error allowed before bot recalculates shortest path
             error = 0.1
             command = Twist()
             x_midpoint = self.find_midpoint(target_cell, "x")
@@ -324,11 +324,6 @@ class YellowTurtle(object):
             # Still moving forward, do not bother it until reaches midpoint of target cell
             else:
                 self.move()
-        # TODO - added in camera tracking and hutning code here
-        else:
-            # Action handled in image callback 
-            return
-        return
 
     def run(self):
         rospy.spin()
